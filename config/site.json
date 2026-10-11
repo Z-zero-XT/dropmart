@@ -1,0 +1,56 @@
+{
+  "_readme": "站点级配置。改这里就能换品牌、换支付、换交付方式，不用改代码。敏感信息请用 .env，不要写在这里。",
+
+  "name": "DropMart",
+  "tagline": "下单即交付的数字商品小店",
+  "description": "一个零依赖、配置驱动的中间商与自动交付样板。换掉 config/products.json 就是你的店。",
+  "currency": "¥",
+  "locale": "zh-CN",
+  "announcement": "本项目为开源技术样板，演示商品为虚构数据。",
+
+  "theme": {
+    "accent": "#0071e3",
+    "defaultMode": "dark"
+  },
+
+  "footer": {
+    "text": "DropMart · MIT License",
+    "links": [
+      { "label": "适配器开发指南", "href": "/guide.html" },
+      { "label": "订单查询", "href": "/order.html" }
+    ]
+  },
+
+  "order": {
+    "expireMinutes": 30,
+    "maxQuantity": 20
+  },
+
+  "payment": {
+    "driver": "mock",
+    "drivers": {
+      "mock": {
+        "label": "演示支付（即时到账）"
+      },
+      "manual": {
+        "label": "人工收款",
+        "instruction": "请扫码付款后把订单号发给客服，管理员确认后立即发货。"
+      },
+      "webhook": {
+        "label": "通用支付网关",
+        "gatewayUrl": "https://example.com/pay",
+        "secret": "CHANGE_ME_OR_USE_ENV_APP_SECRET"
+      }
+    }
+  },
+
+  "delivery": {
+    "webhookNotifyUrl": "",
+    "webhookNotifySecret": ""
+  },
+
+  "admin": {
+    "path": "/admin",
+    "password": "admin"
+  }
+}

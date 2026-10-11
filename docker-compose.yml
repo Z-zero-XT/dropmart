@@ -1,0 +1,21 @@
+services:
+  dropmart:
+    build: .
+    image: dropmart:latest
+    container_name: dropmart
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      # 正式部署务必改掉这两项
+      ADMIN_PASSWORD: "change-this-password"
+      APP_SECRET: "change-this-to-a-random-32-byte-hex"
+      # 供支付网关回调使用，必须是外部可访问的地址
+      PUBLIC_URL: "https://shop.example.com"
+      PORT: "8787"
+      HOST: "0.0.0.0"
+    volumes:
+      # 订单与卡密都在 data/ 里，必须持久化
+      - ./data:/app/data
+      # 想改商品和站点配置时，把 config 也挂出来
+      - ./config:/app/config:ro

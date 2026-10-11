@@ -1,0 +1,19 @@
+# 运行时数据（订单库不应该进版本库）
+data/db.json
+data/*.tmp
+
+# 真实卡密池默认不进版本库，只保留演示数据
+data/stock/*.txt
+!data/stock/demo-code.txt
+
+# 环境变量
+.env
+
+# 依赖与系统文件
+node_modules/
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

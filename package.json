@@ -1,0 +1,31 @@
+{
+  "name": "dropmart",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Zero-dependency storefront boilerplate for dropshipping and automated delivery. Config-driven catalog, pluggable payment & fulfilment adapters.",
+  "keywords": [
+    "storefront",
+    "dropshipping",
+    "digital-goods",
+    "auto-delivery",
+    "fulfilment",
+    "zero-dependency",
+    "boilerplate"
+  ],
+  "license": "MIT",
+  "author": "Z-zero-XT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Z-zero-XT/dropmart.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node scripts/smoke-test.js"
+  },
+  "dependencies": {}
+}

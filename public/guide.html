@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>适配器开发指南 · DropMart</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script>try{var t=localStorage.getItem('dropmart-theme');if(t)document.documentElement.dataset.theme=t;}catch(e){}</script>
+</head>
+<body data-page="guide" data-title="适配器开发指南">
+  <header class="site"></header>
+  <main>
+    <div class="wrap doc">
+      <h1>适配器开发指南</h1>
+      <p style="color:var(--muted);margin-top:8px">
+        交付和支付都被抽成了适配器。要接一个新的货源或支付通道，你只需要写一个文件、在注册表里加一行，
+        不需要动订单流程、不需要动前端。
+      </p>
+
+      <h2>一、交付适配器</h2>
+      <p>交付适配器负责回答两个问题：这一单怎么发货？现在还剩多少货？</p>
+      <pre>// src/adapters/delivery/my-supplier.js
+module.exports = {
+  name: 'my-supplier',
+
+  // 出货。返回三种结果之一：
+  //   { ok: true,  items: ['交付内容', ...], message: '...' }
+  //   { ok: false, manual: true, message: '转入人工处理' }
+  //   { ok: false, message: '失败原因' }
+  async deliver(order, product, ctx) {
+    const res = await fetch(product.deliveryConfig.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku: product.sku, qty: order.quantity }),
+    });
+    if (!res.ok) return { ok: false, message: `上游 HTTP ${res.status}` };
+    const data = await res.json();
+    return { ok: true, items: data.codes, message: '已由上游发货' };
+  },
+
+  // 剩余库存。返回 -1 表示未知或不限。
+  stock(product) {
+    return Number(product.deliveryConfig.stock ?? -1);
+  },
+
+  // 可选：后台「导入卡密」按钮会调用它
+  async importKeys(product, keys) {
+    const list = String(keys).split(/\r?\n/).filter(Boolean);
+    // …写入你自己的存储…
+    return { imported: list.length, skipped: 0, total: list.length };
+  },
+};</pre>
+      <p>然后在 <code>src/adapters/delivery/index.js</code> 底部注册：</p>
+      <pre>register('my-supplier', require('./my-supplier'));</pre>
+      <p>
+        商品侧只要在 <code>config/products.json</code> 里把 <code>delivery</code> 指向这个名字，
+        再填好 <code>deliveryConfig</code> 就行。
+      </p>
+
+      <h2>二、内置的三种交付方式</h2>
+      <table>
+        <thead>
+          <tr><th>名称</th><th>行为</th><th>适用场景</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>pool</code></td>
+            <td>从 <code>data/stock/</code> 下的文本文件里取号，取走即删除</td>
+            <td>你手上已经有一批卡密、兑换码、授权码</td>
+          </tr>
+          <tr>
+            <td><code>upstream</code></td>
+            <td>调用上游接口取货，支持请求体模板与响应取值路径</td>
+            <td>中间商模式：绑定供应商，由供应商履约</td>
+          </tr>
+          <tr>
+            <td><code>manual</code></td>
+            <td>付款后进人工队列，你在后台填交付内容</td>
+            <td>低频、需要人工核对、上游暂时没有接口</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>upstream 配置字段</h3>
+      <table>
+        <thead>
+          <tr><th>字段</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>url</code></td><td>上游发货接口地址</td></tr>
+          <tr><td><code>method</code></td><td>默认 <code>POST</code></td></tr>
+          <tr><td><code>headers</code></td><td>请求头，通常放鉴权 token</td></tr>
+          <tr><td><code>body</code></td><td>请求体。支持 <code>{{qty}}</code> <code>{{orderId}}</code> <code>{{sku}}</code> <code>{{productId}}</code> 占位符</td></tr>
+          <tr><td><code>itemsPath</code></td><td>从响应里取交付内容的路径，例如 <code>data.items</code></td></tr>
+          <tr><td><code>itemField</code></td><td>当返回的是对象数组时，取哪个字段作为交付内容</td></tr>
+          <tr><td><code>timeoutMs</code></td><td>超时毫秒数，默认 10000</td></tr>
+          <tr><td><code>stock</code></td><td>声明库存；不填即为未知</td></tr>
+        </tbody>
+      </table>
+
+      <h2>三、支付适配器</h2>
+      <pre>// src/adapters/payment/my-gateway.js
+module.exports = {
+  name: 'my-gateway',
+  label: (site) => '我的支付通道',
+
+  async createPayment(order, ctx) {
+    return { ok: true, payUrl: `https://pay.example.com/?out=${order.id}`, label: '我的支付通道' };
+  },
+
+  // 网关异步回调 POST /api/pay/webhook
+  verifyCallback(payload, ctx) {
+    // 自己验签，验过了就返回订单号
+    return { ok: true, orderId: payload.orderId, amount: Number(payload.amount) };
+  },
+
+  // 可选：需要自己的回跳路由时实现它，路径前缀是 /api/pay/<name>/
+  async handleRequest({ req, res, url, params, ctx }) {
+    return false;
+  },
+};</pre>
+      <p>同样在注册表里加一行，然后把 <code>config/site.json</code> 的 <code>payment.driver</code> 改成它。</p>
+
+      <h2>四、内置的三种支付方式</h2>
+      <table>
+        <thead>
+          <tr><th>名称</th><th>行为</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>mock</code></td><td>演示用：点开链接即视为付款成功。切勿对公网开放。</td></tr>
+          <tr><td><code>manual</code></td><td>线下收款，由管理员在后台确认已收款</td></tr>
+          <tr><td><code>webhook</code></td><td>通用网关：带 HMAC 签名跳转 + 回调验签</td></tr>
+        </tbody>
+      </table>
+
+      <h3>webhook 签名规则</h3>
+      <p>
+        跳转时携带 <code>orderId</code>、<code>amount</code>、<code>currency</code>、<code>subject</code>、
+        <code>notifyUrl</code>、<code>sign</code>，其中：<br>
+        <code>sign = HMAC-SHA256(secret, orderId + ":" + amount)</code>
+      </p>
+      <p>网关回调 <code>POST /api/pay/webhook</code> 时需要回传同样的字段，签名与金额都校验通过后订单才会发货。</p>
+
+      <h2>五、订单状态机</h2>
+      <pre>pending        下单完成，等待支付
+  ├─ expired   超过 config/site.json 的 order.expireMinutes 未支付
+  ├─ failed    创建支付时出错
+  └─ paid      收到款项
+       ├─ delivered        交付成功，顾客可凭 token 取货
+       └─ pending_manual   进入人工队列</pre>
+
+      <h2>六、部署要点</h2>
+      <ul>
+        <li>正式环境务必设置 <code>ADMIN_PASSWORD</code> 与 <code>APP_SECRET</code>。</li>
+        <li>把支付驱动从 <code>mock</code> 换成 <code>manual</code> 或 <code>webhook</code>。</li>
+        <li>设置 <code>PUBLIC_URL</code>，否则支付回调地址会指向本机。</li>
+        <li><code>data/</code> 目录存的是订单和卡密，请挂载持久卷并排除在版本控制外。</li>
+        <li>建议放在 Nginx / Caddy 后面处理 HTTPS，本服务本身只监听 HTTP。</li>
+      </ul>
+
+      <h2>七、合规提醒</h2>
+      <p>
+        本项目是技术骨架，不附带任何货盘。使用前请确认你所售商品拥有合法授权，
+        且不涉及他人账号、个人信息、仿冒品或受限服务。合规责任由运营者承担。
+      </p>
+
+      <p style="margin-top:28px"><a href="/">返回全部商品</a></p>
+    </div>
+  </main>
+  <footer class="site"></footer>
+  <script src="/app.js"></script>
+</body>
+</html>

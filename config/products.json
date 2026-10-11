@@ -1,0 +1,63 @@
+{
+  "_readme": "货盘定义。products[].delivery 决定商品怎么发货：pool=本地卡密池 / upstream=对接上游接口 / manual=人工发货。",
+  "_deliveryConfig": {
+    "pool": "{ \"file\": \"data/stock/your-pool.txt\" } —— 每行一个交付项，# 开头的行视为注释",
+    "upstream": "{ \"url\", \"method\", \"headers\", \"body\", \"itemsPath\", \"quantityField\", \"timeoutMs\" } —— 支持 {{qty}} {{orderId}} {{sku}} 占位符",
+    "manual": "{ \"instruction\": \"给顾客看的话\" }"
+  },
+
+  "products": [
+    {
+      "id": "demo-license",
+      "title": "示例软件授权码 · 1 个月",
+      "subtitle": "下单后自动从卡密池发放，演示「本地卡密池」交付",
+      "price": 19.9,
+      "tags": ["自动发货", "演示"],
+      "active": true,
+      "delivery": "pool",
+      "deliveryConfig": {
+        "file": "data/stock/demo-code.txt"
+      },
+      "sku": "DEMO-LICENSE-1M"
+    },
+    {
+      "id": "demo-manual",
+      "title": "示例会员兑换码 · 年付",
+      "subtitle": "付款后进入人工队列，演示「人工发货」流程",
+      "price": 99,
+      "tags": ["人工发货", "演示"],
+      "active": true,
+      "delivery": "manual",
+      "deliveryConfig": {
+        "instruction": "我们会在 12 小时内人工把兑换码发到你的联系邮箱。"
+      },
+      "sku": "DEMO-MEMBER-1Y"
+    },
+    {
+      "id": "demo-upstream",
+      "title": "示例上游对接商品",
+      "subtitle": "演示「绑定上游、由上游履约」——默认下架，改好 deliveryConfig 再上架",
+      "price": 9.9,
+      "tags": ["上游对接", "演示"],
+      "active": false,
+      "delivery": "upstream",
+      "deliveryConfig": {
+        "url": "https://your-supplier.example.com/api/issue",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer REPLACE_WITH_YOUR_SUPPLIER_TOKEN",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "sku": "{{sku}}",
+          "quantity": "{{qty}}",
+          "reference": "{{orderId}}"
+        },
+        "itemsPath": "data.items",
+        "quantityField": "quantity",
+        "timeoutMs": 10000
+      },
+      "sku": "DEMO-UPSTREAM-1"
+    }
+  ]
+}
